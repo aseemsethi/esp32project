@@ -31,7 +31,7 @@ uint8_t mac[6] ={0};  // WiFi MAC address;
 uint8_t s_retries_count=0;
 static const char *TAG = "SecDev  ";
 #define EXAMPLE_ESP_WIFI_SSID      "JioFi2_D0B75C"
-#define EXAMPLE_ESP_WIFI_PASS      "pinewood"
+#define EXAMPLE_ESP_WIFI_PASS      "xxxxx"
 #define EXAMPLE_ESP_MAXIMUM_RETRY  5
 
 
