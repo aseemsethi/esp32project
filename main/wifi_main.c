@@ -33,8 +33,8 @@ const int WIFI_FAIL_BIT = BIT1;
 uint8_t mac[6] ={0};  // WiFi MAC address;
 uint8_t s_retries_count=0;
 static const char *TAG = "SecDev  ";
-#define EXAMPLE_ESP_WIFI_SSID      "JioFi2_D0B75C"
-#define EXAMPLE_ESP_WIFI_PASS      "pinewood"
+#define EXAMPLE_ESP_WIFI_SSID      "JioFi2_D0B75C"  // not used with SmarConfig
+#define EXAMPLE_ESP_WIFI_PASS      "xyz"            // not used
 #define EXAMPLE_ESP_MAXIMUM_RETRY  5
 wifi_config_t wifi_config = {
     .sta = {
@@ -163,7 +163,6 @@ void wifi_init_sta(void)
                                 ESP_EVENT_ANY_ID, &smartconfig_event_handler, NULL));
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
-    //ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
     ESP_ERROR_CHECK(esp_wifi_start() );
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
@@ -212,7 +211,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
                 return;
             }
             printf("\nStored SSID: %s", (char *)wifi_config.sta.ssid);
-            printf("\nStored PASSWORD: %s", (char*)wifi_config.sta.password); 
+            //printf("\nStored PASSWORD: %s", (char*)wifi_config.sta.password); 
             oledClear(); 
             oledDisplay(7, 10, "Connected:"); oledDisplay(7, 25, (char *)wifi_config.sta.ssid);
             ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
