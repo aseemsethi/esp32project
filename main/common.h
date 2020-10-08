@@ -16,6 +16,7 @@
 #include "sdkconfig.h"
 #include <errno.h>
 #include <esp_http_server.h>
+#include "esp_smartconfig.h"
 
 
 #define WIFI_CHANNEL_SWITCH_INTERVAL    (700)
@@ -56,8 +57,9 @@ void wifi_config_write_string(char* type, char* val);
 void wifi_config_write_int(char* type, int val);
 int wifi_config_write_beacons(char* name, char* tag, char* notifyOn, 
                               char* startTime, char* endTime, int id);
-static void event_handler(void* arg, esp_event_base_t event_base, 
-                                int32_t event_id, void* event_data);
 int getCurrentTime();
 void stop_webserver(httpd_handle_t server);
 void ble_main(void);
+void smartconfig_run_task(void*);
+void smartconfig_event_handler(void* arg, esp_event_base_t event_base, 
+                                int32_t event_id, void* event_data);

@@ -1,4 +1,5 @@
-idf_component_register(SRCS "wifi_main.c" "wifi_eraseconfig.c" "u8g2_oled.c" "u8g2_esp32_hal.c"
+idf_component_register(SRCS "wifi_main.c" "wifi_eraseconfig.c" "u8g2_oled.c" "u8g2_esp32_hal.c" 
+							"smartconfig_main.c"
                     INCLUDE_DIRS ".")
 
 # Create a SPIFFS image from the contents of the 'spiffs_image' directory

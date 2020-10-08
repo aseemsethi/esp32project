@@ -23,6 +23,9 @@ void wifi_mqtt_start(void*);
 void wifi_send_mqtt(char* msg);
 void wifi_spiffs_config_read(void);
 
+static void event_handler(void* arg, esp_event_base_t event_base, 
+                                int32_t event_id, void* event_data);
+
 EventGroupHandle_t s_wifi_event_group;
 bool nimbleRunning = true;
 const int WIFI_CONNECTED_BIT = BIT0;
@@ -31,10 +34,23 @@ uint8_t mac[6] ={0};  // WiFi MAC address;
 uint8_t s_retries_count=0;
 static const char *TAG = "SecDev  ";
 #define EXAMPLE_ESP_WIFI_SSID      "JioFi2_D0B75C"
-#define EXAMPLE_ESP_WIFI_PASS      "xxxxx"
+#define EXAMPLE_ESP_WIFI_PASS      "pinewood"
 #define EXAMPLE_ESP_MAXIMUM_RETRY  5
+wifi_config_t wifi_config = {
+    .sta = {
+        //.ssid = EXAMPLE_ESP_WIFI_SSID,
+        //.password = EXAMPLE_ESP_WIFI_PASS,
+        /* Setting a password implies station will connect to all security modes including WEP/WPA.
+         * However these modes are deprecated and not advisable to be used. Incase your Access point
+         * doesn't support WPA2, these mode can be enabled by commenting below line */
+     .threshold.authmode = WIFI_AUTH_WPA2_PSK,
 
-
+        .pmf_cfg = {
+            .capable = true,
+            .required = false
+        },
+    },
+};
 // Forces data into RTC slow memory. See "docs/deep-sleep-stub.rst"
 // Any variable marked with this attribute will keep its value
 // during a deep sleep / wake cycle.
@@ -138,33 +154,16 @@ void wifi_init_sta(void)
     esp_event_handler_instance_t instance_any_id;
     esp_event_handler_instance_t instance_got_ip;
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
-                                                        ESP_EVENT_ANY_ID,
-                                                        &event_handler,
-                                                        NULL,
-                                                        &instance_any_id));
+                                ESP_EVENT_ANY_ID, &event_handler,
+                                NULL, &instance_any_id));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
-                                                        IP_EVENT_STA_GOT_IP,
-                                                        &event_handler,
-                                                        NULL,
-                                                        &instance_got_ip));
+                                IP_EVENT_STA_GOT_IP, &event_handler,
+                                NULL, &instance_got_ip));
+    ESP_ERROR_CHECK( esp_event_handler_register(SC_EVENT, 
+                                ESP_EVENT_ANY_ID, &smartconfig_event_handler, NULL));
 
-    wifi_config_t wifi_config = {
-        .sta = {
-            .ssid = EXAMPLE_ESP_WIFI_SSID,
-            .password = EXAMPLE_ESP_WIFI_PASS,
-            /* Setting a password implies station will connect to all security modes including WEP/WPA.
-             * However these modes are deprecated and not advisable to be used. Incase your Access point
-             * doesn't support WPA2, these mode can be enabled by commenting below line */
-         .threshold.authmode = WIFI_AUTH_WPA2_PSK,
-
-            .pmf_cfg = {
-                .capable = true,
-                .required = false
-            },
-        },
-    };
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
+    //ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
     ESP_ERROR_CHECK(esp_wifi_start() );
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
@@ -180,11 +179,9 @@ void wifi_init_sta(void)
     /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
      * happened. */
     if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
-                 EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+        ESP_LOGI(TAG, "connected to ap SSID:%s", EXAMPLE_ESP_WIFI_SSID);
     } else if (bits & WIFI_FAIL_BIT) {
-        ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
-                 EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+        ESP_LOGI(TAG, "Failed to connect to SSID:%s", EXAMPLE_ESP_WIFI_SSID);
     } else {
         ESP_LOGE(TAG, "UNEXPECTED EVENT");
     }
@@ -203,7 +200,29 @@ static void event_handler(void* arg, esp_event_base_t event_base,
     ESP_LOGI(TAG, "event_handler eventid: %d", event_id);
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         ESP_LOGI(TAG,"WIFI_EVENT_STA_START recvd");
-        esp_wifi_connect();
+        //ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_FLASH));  
+        esp_err_t ret = esp_wifi_get_config(ESP_IF_WIFI_STA, &wifi_config);
+        if (ret == ESP_OK) {
+            printf("\n !! Config found in Flash");
+            printf("\nSize of esp_wifi_config: %i", sizeof(wifi_config));
+            if (strlen((char*)wifi_config.sta.ssid) == 0) {
+                printf("\n But, SSID is NULL...start Smart Config");
+                oledDisplay(40, 30, "- Smart Cfg");
+                xTaskCreate(smartconfig_run_task, "Smart Config Task", 3072, NULL, 1, NULL);
+                return;
+            }
+            printf("\nStored SSID: %s", (char *)wifi_config.sta.ssid);
+            printf("\nStored PASSWORD: %s", (char*)wifi_config.sta.password); 
+            oledClear(); 
+            oledDisplay(7, 10, "Connected:"); oledDisplay(7, 25, (char *)wifi_config.sta.ssid);
+            ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
+            esp_wifi_connect();
+        } else {
+            printf("\n !!!! No config found in Flash");
+            ESP_LOGI(TAG, "!!!!!!!!! Station Start Handler - start smart config"); 
+            xTaskCreate(smartconfig_run_task, "Smart Config Task", 3072, NULL, 1, NULL);
+        }
+        //esp_wifi_connect();
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         ESP_LOGI(TAG,"WIFI_EVENT_STA_DISCONNECTED recvd");
         //if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
