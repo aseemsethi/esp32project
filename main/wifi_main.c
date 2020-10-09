@@ -5,7 +5,6 @@
 #include <driver/adc.h>
 
 void wifi_init_sta(void);
-void wifi_sniffer_init(void);
 void wifi_sniffer_run(void);
 void setupEvents(void);
 void initCLI(void*);
@@ -33,6 +32,9 @@ const int WIFI_FAIL_BIT = BIT1;
 uint8_t mac[6] ={0};  // WiFi MAC address;
 uint8_t s_retries_count=0;
 static const char *TAG = "SecDev  ";
+static TaskHandle_t xhandleSniffer = NULL;
+static TaskHandle_t xhandleMqtt = NULL;
+
 #define EXAMPLE_ESP_WIFI_SSID      "JioFi2_D0B75C"  // not used with SmarConfig
 #define EXAMPLE_ESP_WIFI_PASS      "xyz"            // not used
 #define EXAMPLE_ESP_MAXIMUM_RETRY  5
@@ -121,7 +123,16 @@ void app_main(void)
     io_conf.pull_down_en = 1;
     io_conf.pull_up_en = 0;
     gpio_config(&io_conf);
+
+    ESP_LOGI(TAG, "[!] Starting sniffing task...");
+    xTaskCreate(&snifferTask, "sniffig_task", 10000, NULL, 1, &xhandleSniffer);
+    if(xhandleSniffer == NULL)
+        ESP_LOGI(TAG, "Cannot to create sniffer task");
     
+    xTaskCreate(&mqttTask, "mqttTask", 10000, NULL, NULL, &xhandleMqtt);
+    if(xhandleMqtt == NULL)
+        ESP_LOGI(TAG, "Cannot to create MQTT task");
+
     //adc1_config_width(ADC_WIDTH_BIT_12);
     while(1) {
         //int bits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT, pdTRUE, /* clear bit */
@@ -136,8 +147,25 @@ void app_main(void)
         }
     }
     printf("SecDev - exited !");
+    vTaskDelete(xhandleSniffer);
+
 }
 
+void printDiags() {
+    tcpip_adapter_ip_info_t ip_info;
+    uint8_t l_Mac[6];
+
+    esp_wifi_get_mac(ESP_IF_WIFI_STA, l_Mac);
+    ESP_LOGI(TAG, "MAC Address: %02x:%02x:%02x:%02x:%02x:%02x", l_Mac[0], l_Mac[1], l_Mac[2], l_Mac[3], l_Mac[4], l_Mac[5]);
+
+    ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
+    ESP_LOGI(TAG, "IP Address:  %s", ip4addr_ntoa(&ip_info.ip));
+    ESP_LOGI(TAG, "Subnet mask: %s", ip4addr_ntoa(&ip_info.netmask));
+    ESP_LOGI(TAG, "Gateway:     %s", ip4addr_ntoa(&ip_info.gw));
+
+    ESP_LOGI(TAG, "Free memory: %d bytes", esp_get_free_heap_size());
+    ESP_LOGI(TAG, "IDF version: %s", esp_get_idf_version());
+}
 
 void wifi_init_sta(void)
 {
@@ -162,7 +190,7 @@ void wifi_init_sta(void)
     ESP_ERROR_CHECK( esp_event_handler_register(SC_EVENT, 
                                 ESP_EVENT_ANY_ID, &smartconfig_event_handler, NULL));
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA)); // WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start() );
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
@@ -178,13 +206,14 @@ void wifi_init_sta(void)
     /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
      * happened. */
     if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "connected to ap SSID:%s", EXAMPLE_ESP_WIFI_SSID);
+        ESP_LOGI(TAG, "connected to AP");
+        printDiags();
     } else if (bits & WIFI_FAIL_BIT) {
-        ESP_LOGI(TAG, "Failed to connect to SSID:%s", EXAMPLE_ESP_WIFI_SSID);
+        ESP_LOGI(TAG, "Failed to connect to AP");
     } else {
-        ESP_LOGE(TAG, "UNEXPECTED EVENT");
+        ESP_LOGE(TAG, "wifi init sta - UNEXPECTED EVENT");
     }
-
+    ESP_LOGI(TAG, "=========================================================================");
     /* The event will not be processed after unregister */
     //ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
     //ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
@@ -196,6 +225,7 @@ static int s_retry_num = 0;
 static void event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data)
 {
+    tcpip_adapter_ip_info_t ip_info;
     ESP_LOGI(TAG, "event_handler eventid: %d", event_id);
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         ESP_LOGI(TAG,"WIFI_EVENT_STA_START recvd");
@@ -212,8 +242,6 @@ static void event_handler(void* arg, esp_event_base_t event_base,
             }
             printf("\nStored SSID: %s", (char *)wifi_config.sta.ssid);
             //printf("\nStored PASSWORD: %s", (char*)wifi_config.sta.password); 
-            oledClear(); 
-            oledDisplay(7, 10, "Connected:"); oledDisplay(7, 25, (char *)wifi_config.sta.ssid);
             ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
             esp_wifi_connect();
         } else {
@@ -224,6 +252,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         //esp_wifi_connect();
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         ESP_LOGI(TAG,"WIFI_EVENT_STA_DISCONNECTED recvd");
+        oledClear();  oledDisplay(7, 10, "DisConnected:"); 
         //if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
             esp_wifi_connect();
         //    s_retry_num++;
@@ -233,7 +262,12 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         //}
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED) {
         ESP_LOGI(TAG,"WIFI_EVENT_STA_CONNECTED recvd");
+        oledClear(); 
+        oledDisplay(7, 10, "Connected:"); oledDisplay(7, 25, (char *)wifi_config.sta.ssid);
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
+        oledClear(); 
+        oledDisplay(7, 10, "Connected:"); oledDisplay(7, 25, (char *)(ip4addr_ntoa(&ip_info.ip)));
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
         ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
         s_retry_num = 0;

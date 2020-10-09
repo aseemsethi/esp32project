@@ -4,7 +4,7 @@
 #
 
 PROJECT_NAME := secdev
-
+EXTRA_COMPONENT_DIRS := components
 include $(IDF_PATH)/make/project.mk
 
 #$(eval $(call spiffs_create_partition_image,storage,spiffs_image,FLASH_IN_PROJECT))

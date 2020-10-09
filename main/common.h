@@ -7,8 +7,9 @@
 #include "esp_system.h"
 #include "esp_event.h"
 //#include "esp_event_loop.h"
+
 #include "esp_event.h"
-#include "nvs_flash.h"
+#include <nvs_flash.h>
 #include "driver/gpio.h"
 #include "esp_log.h"  // for ESP_LOGE
 #include "esp_event.h"
@@ -17,11 +18,16 @@
 #include <errno.h>
 #include <esp_http_server.h>
 #include "esp_smartconfig.h"
-
+#include "md5.h"
+//void md5(const uint8_t *initial_msg, size_t initial_len, uint8_t *digest);
 
 #define WIFI_CHANNEL_SWITCH_INTERVAL    (700)
 #define WIFI_CHANNEL_MAX                (13)
 #define MAX_TAGS 10
+#define CONFIG_VERBOSE 1
+#define CONFIG_CHANNEL 11
+#define SSID_MAX_LEN (32+1) //max length of a SSID
+#define MD5_LEN (32+1) //length of md5 hash
 
 typedef struct {
   unsigned frame_ctrl:16;
@@ -63,3 +69,16 @@ void ble_main(void);
 void smartconfig_run_task(void*);
 void smartconfig_event_handler(void* arg, esp_event_base_t event_base, 
                                 int32_t event_id, void* event_data);
+void snifferTask(void *pvParameter);
+void wifi_sniffer_init(void);
+void wifi_sniffer_packet_handler(void *buff, wifi_promiscuous_pkt_type_t type);
+void get_hash(unsigned char *data, int len_res, char hash[MD5_LEN]);
+void get_ssid(unsigned char *data, char ssid[SSID_MAX_LEN], uint8_t ssid_len);
+int get_sn(unsigned char *data);
+void get_ht_capabilites_info(unsigned char *data, char htci[5], int pkt_len, int ssid_len);
+void dumb(unsigned char *data, int len);
+void save_pkt_info(uint8_t address[6], char *ssid, time_t timestamp, char *hash, int8_t rssi, int sn, char htci[5]);
+int get_start_timestamp(void);
+void mqttTask(void*);
+void wifi_send_mqtt(char* msg);
+
