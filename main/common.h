@@ -53,6 +53,12 @@ typedef struct {
     int bleID;
 } ble_t;
 
+typedef struct {
+  uint8_t cl[6];
+  char wl[18];
+  char name[10];
+} cListStruct;
+
 void oledDisplay(int x, int y, char* str);
 void oledClear(void);
 void wifi_config_init(bool runtime);
@@ -81,4 +87,5 @@ void save_pkt_info(uint8_t address[6], char *ssid, time_t timestamp, char *hash,
 int get_start_timestamp(void);
 void mqttTask(void*);
 void wifi_send_mqtt(char* msg);
+void httpServer(void* param);
 

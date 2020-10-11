@@ -8,7 +8,7 @@ extern const int WIFI_CONNECTED_BIT;
 static esp_mqtt_client_handle_t client;
 static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event);
 void time_sync_notification_cb(struct timeval *tv);
-char mqtt_topic[100];
+char cfgMqttTopic[100];
 static const char *TAG = "MQTT ";
 extern EventGroupHandle_t s_wifi_event_group;
 
@@ -67,7 +67,6 @@ void mqttTask(void* param) {
     char strftime_buf[64];
     int started = 0;
 
-    strcpy(mqtt_topic, "/aseem/secdev");
     const esp_mqtt_client_config_t mqtt_cfg = {
         .uri = "mqtt://mqtt.eclipse.org",
         .port = 1883,
@@ -77,41 +76,45 @@ void mqttTask(void* param) {
     client = esp_mqtt_client_init(&mqtt_cfg);
 
     while(1) {
-    	int bits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT, pdTRUE, /* clear bit */
-                    1, 3000/portTICK_RATE_MS);
+    	int bits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT, 
+                    pdFALSE, pdFALSE, 3000/portTICK_RATE_MS);
 	    if (bits & WIFI_CONNECTED_BIT) {
-                if (started == 0) {
-                    ESP_ERROR_CHECK(esp_mqtt_client_start(client));
-                    ESP_LOGI(TAG,"wifi_mqtt_start: Wifi connected..starting MQTT");
-                    started = 1;
-                } else {
-                    ESP_LOGI(TAG,"wifi_mqtt_start: not restarting MQTT");
-                }
-	    		wifi_send_mqtt("WiFi is up...");
-            if (timeSet == pdFALSE) {
-                ESP_LOGI(TAG, "\n Trying to get time from NTP");
-                timeSet = pdTRUE;
+            if (started == 0) {
+                ESP_ERROR_CHECK(esp_mqtt_client_start(client));
+                ESP_LOGI(TAG,"wifi_mqtt_start: Wifi connected..starting MQTT");
+                started = 1;
+                wifi_send_mqtt("MQTT is up...");
+                if (timeSet == pdFALSE) {
+                    ESP_LOGI(TAG, "\n Trying to get time from NTP");
+                    timeSet = pdTRUE;
 
-                sntp_setoperatingmode(SNTP_OPMODE_POLL);
-                sntp_setservername(0, "pool.ntp.org");
-                sntp_set_time_sync_notification_cb(time_sync_notification_cb);
-                sntp_init();
+                    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+                    sntp_setservername(0, "pool.ntp.org");
+                    sntp_set_time_sync_notification_cb(time_sync_notification_cb);
+                    sntp_init();
 
-                time_t now = 0;
-                struct tm timeinfo = { 0 };
-                int retry = 0;
-                const int retry_count = 10;
-                while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < retry_count) {
-                    ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
-                    vTaskDelay(2000 / portTICK_PERIOD_MS);
+                    time_t now = 0;
+                    struct tm timeinfo = { 0 };
+                    int retry = 0;
+                    const int retry_count = 10;
+                    while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < retry_count) {
+                        ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
+                        vTaskDelay(2000 / portTICK_PERIOD_MS);
+                    }
+                    time(&now);
+                    //setenv("TZ", "CST+18:30", 1);
+                    setenv("TZ", "UTC-5:30", 1);
+                    tzset();
+                    localtime_r(&now, &timeinfo);
+                    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+                    ESP_LOGI(TAG, "The current date/time is: %s", strftime_buf);
                 }
-                time(&now);
-                //setenv("TZ", "CST+18:30", 1);
-                setenv("TZ", "UTC-5:30", 1);
-                tzset();
-                localtime_r(&now, &timeinfo);
-                strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-                ESP_LOGI(TAG, "The current date/time is: %s", strftime_buf);
+            } else {
+                ESP_LOGI(TAG,"wifi_mqtt_start: not restarting MQTT");
+                while (1) {
+                    vTaskDelay(10000 / portTICK_PERIOD_MS);
+                    // TBD - if Wifi Disconnects, we need to restart this process
+                }
             }
    	    }
 	}
@@ -136,11 +139,19 @@ void wifi_send_mqtt(char* msg) {
         //tzset();
         localtime_r(&now, &timeinfo);
         strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-        ESP_LOGI(TAG, "The current date/time : %s", strftime_buf);
+        //ESP_LOGI(TAG, "The current date/time : %s", strftime_buf);
         strcat(temp, strftime_buf);
-
-		int msg_id = esp_mqtt_client_publish(client, mqtt_topic, temp, 0, 0, 0);
-		ESP_LOGI(TAG, "\nwifi_send_mqtt: MQTT Msg: %s : to %s , with id: %d !!!", 
-							temp, mqtt_topic, msg_id);
+        
+        if (strlen(cfgMqttTopic) == 0) {
+            ESP_LOGI(TAG,"Using default topic");
+                        int msg_id = esp_mqtt_client_publish(client, "/aseem/secdev", temp, 0, 0, 0);
+            ESP_LOGI(TAG, "Send MQTT Msg: %s : to /aseem/secdev , with id: %d !!!", 
+                            temp, msg_id);
+        } else {
+            ESP_LOGI(TAG,"Using cfg topic");
+            int msg_id = esp_mqtt_client_publish(client, cfgMqttTopic, temp, 0, 0, 0);
+            ESP_LOGI(TAG, "Send MQTT Msg: %s : to %s , with id: %d !!!", 
+                            temp, cfgMqttTopic, msg_id);
+        }
 	}
 }

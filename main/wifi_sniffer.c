@@ -13,19 +13,26 @@ typedef struct {
 	unsigned char payload[]; //network data
 } __attribute__((packed)) wifi_mgmt_hdr;
 
-typedef struct {
-	uint8_t cl[6];
-	char name[10];
-} cListStruct;
 cListStruct cList[10];
+int cListIndex = 0;
 
 static const char *TAG = "Sniffer ";
 
 void snifferTask(void *pvParameter)
 {
-	int sleep_time = 10*1000;  // 10 seconds
+	int sleep_time = 2*1000;  // 10 seconds
+	char macStr[18];
 
 	ESP_LOGI(TAG, "[SNIFFER] Sniffer Task created");
+	// Save 1 entry in the Whielist - aseem
+	cList[0].cl[0]=0x8c; cList[0].cl[1]=0xb8; cList[0].cl[2]=0x4a; 
+	cList[0].cl[3]=0x3a; cList[0].cl[4]=0x9d; cList[0].cl[5]=0x66; //aseem
+	strcpy(cList[0].name, "aseem"); cListIndex = 1;
+		snprintf(cList[0].wl, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
+         	cList[0].cl[0], cList[0].cl[1], cList[0].cl[2], 
+         	cList[0].cl[3], cList[0].cl[4], cList[0].cl[5]);
+	ESP_LOGI(TAG, "Saved MAC String Aseem: %s", cList[0].wl);
+
 	wifi_sniffer_init();
 
 	while(true){
@@ -62,20 +69,34 @@ void wifi_sniffer_init()
 }
 
 void checkMacs(wifi_mgmt_hdr *mgmt) {
-	cList[0].cl[0]=0x8c; cList[0].cl[1]=0xb8; cList[0].cl[2]=0x4a; 
-	cList[0].cl[3]=0x3a; cList[0].cl[4]=0x9d; cList[0].cl[5]=0x66; //aseem
-	strcpy(cList[0].name, "aseem");
-	cList[1].cl[0]=0x18; cList[1].cl[1]=0x19; cList[1].cl[2]=0xd6; 
-	cList[1].cl[3]=0x85; cList[1].cl[4]=0x95; cList[1].cl[5]=0xb2; //kavita
-	strcpy(cList[1].name, "kavita");
+	//cList[1].cl[0]=0x18; cList[1].cl[1]=0x19; cList[1].cl[2]=0xd6; 
+	//cList[1].cl[3]=0x85; cList[1].cl[4]=0x95; cList[1].cl[5]=0xb2; //kavita
+	//strcpy(cList[1].name, "kavita");
+    
     char temp[200];
-	for (int i=0; i<10;i++) {
+    char macStr[18];
+    /*
+	for (int i=0; i<3;i++) {
 		if (memcmp(&mgmt->sa, &cList[i].cl, sizeof(mgmt->sa)) == 0) {
 			ESP_LOGI(TAG, "Found: %s", cList[i].name);
 			strcpy(temp, "Found: ");
 			strcat(temp, cList[i].name);
 			wifi_send_mqtt(temp);
 			wifi_send_mqtt("aseem hi");
+		}
+	}
+	*/
+	// Convert sniffed MAC into string
+	snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
+         	mgmt->sa[0], mgmt->sa[1], mgmt->sa[2], 
+         	mgmt->sa[3], mgmt->sa[4], mgmt->sa[5]);
+	ESP_LOGI(TAG, "Sniffed MAC String: %s", macStr);
+	for (int i=0; i<3;i++) {
+		if (strcmp(macStr, cList[i].wl) == 0) {
+			ESP_LOGI(TAG, "Found: %s", cList[i].name);
+			strcpy(temp, "Found: ");
+			strcat(temp, cList[i].name);
+			wifi_send_mqtt(temp);
 		}
 	}
 }
@@ -112,7 +133,7 @@ void wifi_sniffer_packet_handler(void* buff, wifi_promiscuous_pkt_type_t type)
 
 		get_ht_capabilites_info(pkt->payload, htci, pkt_len, ssid_len);
 
-		/*ESP_LOGI(TAG, "ADDR=%02x:%02x:%02x:%02x:%02x:%02x, "
+		/* ESP_LOGI(TAG, "ADDR=%02x:%02x:%02x:%02x:%02x:%02x, "
 				"SSID=%s, "
 				"TIMESTAMP=%d, "
 				"HASH=%s, "
@@ -207,9 +228,9 @@ void dumb(unsigned char *data, int len)
 
 void save_pkt_info(uint8_t address[6], char *ssid, time_t timestamp, char *hash, int8_t rssi, int sn, char htci[5])
 {
-	int stime;
+	//int stime;
 
-	stime = get_start_timestamp();
+	//stime = get_start_timestamp();
 	//printf("%d\n", stime);
 
 	printf("%02x:%02x:%02x:%02x:%02x:%02x %s %d %s %02d %d %s\n",

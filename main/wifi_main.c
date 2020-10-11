@@ -34,6 +34,8 @@ uint8_t s_retries_count=0;
 static const char *TAG = "SecDev  ";
 static TaskHandle_t xhandleSniffer = NULL;
 static TaskHandle_t xhandleMqtt = NULL;
+static TaskHandle_t xhandleHttp = NULL;
+
 
 #define EXAMPLE_ESP_WIFI_SSID      "JioFi2_D0B75C"  // not used with SmarConfig
 #define EXAMPLE_ESP_WIFI_PASS      "xyz"            // not used
@@ -56,12 +58,10 @@ wifi_config_t wifi_config = {
 // Forces data into RTC slow memory. See "docs/deep-sleep-stub.rst"
 // Any variable marked with this attribute will keep its value
 // during a deep sleep / wake cycle.
-static RTC_DATA_ATTR struct timeval sleep_enter_time;
 
 // Forces data into RTC slow memory of .noinit section.
 // Any variable marked with this attribute will keep its value
 // after restart or during a deep sleep / wake cycle.
-static RTC_NOINIT_ATTR bool snifferMode = pdFALSE;
 TaskHandle_t snifferHandle = NULL;
 
 void app_main(void)
@@ -129,9 +129,13 @@ void app_main(void)
     if(xhandleSniffer == NULL)
         ESP_LOGI(TAG, "Cannot to create sniffer task");
     
-    xTaskCreate(&mqttTask, "mqttTask", 10000, NULL, NULL, &xhandleMqtt);
+    xTaskCreate(&mqttTask, "mqttTask", 10000, NULL, 0, &xhandleMqtt);
     if(xhandleMqtt == NULL)
         ESP_LOGI(TAG, "Cannot to create MQTT task");
+
+    xTaskCreate(&httpServer, "httpServer", 10000, NULL, 0, &xhandleHttp);
+    if(xhandleHttp == NULL)
+        ESP_LOGI(TAG, "Cannot to create HTTP Server task");
 
     //adc1_config_width(ADC_WIDTH_BIT_12);
     while(1) {
