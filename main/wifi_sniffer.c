@@ -69,20 +69,11 @@ void wifi_sniffer_init()
 }
 
 void checkMacs(wifi_mgmt_hdr *mgmt) {
-	//cList[1].cl[0]=0x18; cList[1].cl[1]=0x19; cList[1].cl[2]=0xd6; 
-	//cList[1].cl[3]=0x85; cList[1].cl[4]=0x95; cList[1].cl[5]=0xb2; //kavita
-	//strcpy(cList[1].name, "kavita");
     
     char temp[200];
     char macStr[18];
-    /*
-	for (int i=0; i<3;i++) {
+    /* for (int i=0; i<3;i++) {
 		if (memcmp(&mgmt->sa, &cList[i].cl, sizeof(mgmt->sa)) == 0) {
-			ESP_LOGI(TAG, "Found: %s", cList[i].name);
-			strcpy(temp, "Found: ");
-			strcat(temp, cList[i].name);
-			wifi_send_mqtt(temp);
-			wifi_send_mqtt("aseem hi");
 		}
 	}
 	*/
@@ -90,8 +81,8 @@ void checkMacs(wifi_mgmt_hdr *mgmt) {
 	snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
          	mgmt->sa[0], mgmt->sa[1], mgmt->sa[2], 
          	mgmt->sa[3], mgmt->sa[4], mgmt->sa[5]);
-	ESP_LOGI(TAG, "Sniffed MAC String: %s", macStr);
-	for (int i=0; i<3;i++) {
+	//ESP_LOGI(TAG, "Sniffed MAC String: %s", macStr);
+	for (int i=0; i<=cListIndex;i++) {
 		if (strcmp(macStr, cList[i].wl) == 0) {
 			ESP_LOGI(TAG, "Found: %s", cList[i].name);
 			strcpy(temp, "Found: ");

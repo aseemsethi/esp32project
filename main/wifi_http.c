@@ -17,10 +17,9 @@ char cfgMqttTopic[100];
 extern cListStruct cList[];
 extern int cListIndex;
 
-//char ddns_uri[100];
 void wifi_send_mqtt(char* msg);
-//char version[6] = "1.0";
-//extern char rendered[];
+char version[6] = "1.0";
+extern char rendered[];
 
 //int ble_index = 0;
 //ble_t ble[MAX_TAGS]; 
@@ -84,7 +83,7 @@ static esp_err_t params_set_handler(httpd_req_t *req)
                 strcpy(cfgMqttTopic, param);
                 char msg[100]; strcpy(msg, "MQTT: Set Topic "); strcat(msg, cfgMqttTopic);
                 wifi_send_mqtt(msg);
-                //wifi_config_write_string("MQTT_TOKEN", mqtt_topic);
+                wifi_config_write_string("MQTT_TOKEN", cfgMqttTopic);
             }
             if (httpd_query_key_value(buf, "mac", param, sizeof(param)) == ESP_OK) {
                 ESP_LOGI(TAG, "Found URL query parameter => mac=%s", param);
@@ -145,6 +144,10 @@ static const httpd_uri_t putVal = {
 };
 
 /**********************************************************************************/
+/*
+ * http://192.168.68.111:8080/readval?mem=1
+ * http://192.168.68.111:8080/readval?config=1
+ */
 static esp_err_t readval_handler(httpd_req_t *req) {
     char*  buf;
     size_t buf_len;
@@ -172,14 +175,14 @@ static esp_err_t readval_handler(httpd_req_t *req) {
             ESP_LOGI(TAG, "Found URL query => %s", buf);
             
             char param[32];
-            /*
+            
             if (httpd_query_key_value(buf, "config", param, sizeof(param)) == ESP_OK) {
                 wifi_config_init(false);
                 resp[0] = '\0';
                 char temp[600];
                 sprintf(temp, "Version: %s, Config: \n %s", version, rendered);
                 strcat(resp, temp);
-            } else*/
+            } else
             if (httpd_query_key_value(buf, "mem", param, sizeof(param)) == ESP_OK) {
                 resp[0] = '\0';
                 char temp[50];
@@ -191,6 +194,7 @@ static esp_err_t readval_handler(httpd_req_t *req) {
         free(buf);
     }
     // End response
+    ESP_LOGI(TAG, "HTTP Resp: %s", resp);
     httpd_resp_send(req, resp, strlen(resp));
     return ESP_OK;
 }
@@ -220,6 +224,8 @@ int start_webserver() {
     ESP_LOGI(TAG, "Starting HTTP server on port: '%d'", 8080);
     if (httpd_start(&server, &config) == ESP_OK) {
     	printf("...http success !");
+            ESP_LOGI(TAG, "=========================================================================HTTP");
+
         // Set URI handlers
         httpd_register_uri_handler(server, &putVal);
         httpd_register_uri_handler(server, &readVal);

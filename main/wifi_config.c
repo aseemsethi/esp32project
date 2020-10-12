@@ -2,12 +2,12 @@
 #include "esp_spiffs.h"
 #include "cJSON.h"
 
-static const char *TAG = "WiFi Config";
-extern char mqtt_topic[100];
-extern int mqtt;
-extern char ddns_uri[];
-extern int ble_index;
-extern ble_t ble[]; 
+static const char *TAG = "Config ";
+extern char cfgMqttTopic[100];
+
+char ddns_uri[100];
+int ble_index;
+ble_t ble[100]; 
 
 esp_vfs_spiffs_conf_t conf = {
     .base_path = "/spiffs",
@@ -78,7 +78,7 @@ void clearConfigs() {
         ESP_LOGE(TAG, "Failed to find spiffs partition");
       else 
         ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
-      return ESP_FAIL;
+      return;
     }
     FILE* f = fopen("/spiffs/hello", "w"); // opening with w erases the file
     fclose(f);
@@ -100,13 +100,13 @@ void wifi_config_read_into_params() {
 	if (cJSON_GetObjectItem(root,"Name")) {
 		printf("\n Name: %s", cJSON_GetObjectItem(root,"Name")->valuestring);
 	}
-	if (cJSON_GetObjectItem(root,"MQTT")) {
+	/*if (cJSON_GetObjectItem(root,"MQTT")) {
 		printf("\n MQTT: %d", cJSON_GetObjectItem(root,"MQTT")->valueint);
 		mqtt = cJSON_GetObjectItem(root,"MQTT")->valueint;
-	}
+	}*/
 	if (cJSON_GetObjectItem(root,"MQTT_TOKEN")) {
 		printf("\n MQTT Token: %s", cJSON_GetObjectItem(root,"MQTT_TOKEN")->valuestring);
-		strcpy(mqtt_topic, cJSON_GetObjectItem(root,"MQTT_TOKEN")->valuestring);
+		strcpy(cfgMqttTopic, cJSON_GetObjectItem(root,"MQTT_TOKEN")->valuestring);
 	}
   if (cJSON_GetObjectItem(root,"DDNS")) {
     printf("\n DDNS: %s", cJSON_GetObjectItem(root,"DDNS")->valuestring);

@@ -124,6 +124,9 @@ void app_main(void)
     io_conf.pull_up_en = 0;
     gpio_config(&io_conf);
 
+    wifi_config_init(true);
+
+
     ESP_LOGI(TAG, "[!] Starting sniffing task...");
     xTaskCreate(&snifferTask, "sniffig_task", 10000, NULL, 1, &xhandleSniffer);
     if(xhandleSniffer == NULL)
@@ -217,7 +220,7 @@ void wifi_init_sta(void)
     } else {
         ESP_LOGE(TAG, "wifi init sta - UNEXPECTED EVENT");
     }
-    ESP_LOGI(TAG, "=========================================================================");
+    ESP_LOGI(TAG, "=========================================================================WIFI");
     /* The event will not be processed after unregister */
     //ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
     //ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));

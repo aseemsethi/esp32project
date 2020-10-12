@@ -4,7 +4,6 @@
 /* True if ESP is connected to the MQTT broker, false otherwise */
 static bool MQTT_CONNECTED = false;
 extern const int WIFI_CONNECTED_BIT;
-/* Client variable for MQTT connection */
 static esp_mqtt_client_handle_t client;
 static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event);
 void time_sync_notification_cb(struct timeval *tv);
