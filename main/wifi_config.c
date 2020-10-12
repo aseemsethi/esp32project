@@ -8,6 +8,9 @@ extern char cfgMqttTopic[100];
 char ddns_uri[100];
 int ble_index;
 ble_t ble[100]; 
+extern cListStruct cList[];
+extern int cListIndex;
+
 
 esp_vfs_spiffs_conf_t conf = {
     .base_path = "/spiffs",
@@ -96,6 +99,8 @@ void wifi_config_read_into_params() {
 		root=cJSON_CreateObject();	
     cJSON *beacons = cJSON_CreateArray();
     cJSON_AddItemToObject(root, "beacons", beacons);
+    cJSON *macs = cJSON_CreateArray();
+    cJSON_AddItemToObject(root, "macs", macs);
 	}
 	if (cJSON_GetObjectItem(root,"Name")) {
 		printf("\n Name: %s", cJSON_GetObjectItem(root,"Name")->valuestring);
@@ -129,6 +134,16 @@ void wifi_config_read_into_params() {
                 ble[ble_index].endTime, ble[ble_index].bleID);
      ble_index++;
   }
+
+  cJSON *item1 = cJSON_GetObjectItem(root,"macs");
+  for (int i = 0 ; i < cJSON_GetArraySize(item1) ; i++) {
+     cJSON *subitem = cJSON_GetArrayItem(item1, i);
+     strcpy(cList[cListIndex].wl, cJSON_GetObjectItem(subitem, "MACADDRESS")->valuestring);
+     strcpy(cList[cListIndex].name, cJSON_GetObjectItem(subitem, "MACNAME")->valuestring);
+     printf("\n Reading in macs: %s:%s", 
+                cList[cListIndex].name, cList[cListIndex].wl);
+     cListIndex++;
+  }
 	printf("\ncJSON: config read...end");
 	printf("\n *************************************************\n");
 }
@@ -144,6 +159,8 @@ void configCommit() {
       root=cJSON_CreateObject();  
       cJSON *beacons = cJSON_CreateArray();
       cJSON_AddItemToObject(root, "beacons", beacons);
+      cJSON *macs = cJSON_CreateArray();
+      cJSON_AddItemToObject(root, "macs", macs);
     }
   } else {
 		printf("\nRendered String: %s\n", tmp);
@@ -202,6 +219,19 @@ void wifi_config_write_int(char* type, int val) {
 		printf("\n adding new int entry for %s", type);
 	}
 	configCommit();
+}
+
+int wifi_config_write_macs(char* macaddress, char* name) {
+    cJSON *macs = cJSON_GetObjectItem(root,"macs");
+    //int freeIndex = cJSON_GetArraySize(macs);
+    cJSON *mac = cJSON_CreateObject();
+    cJSON_AddItemToArray(macs, mac);
+  
+    cJSON_AddItemToObject(mac, "MACNAME", cJSON_CreateString(name));
+    cJSON_AddItemToObject(mac, "MACADDRESS", cJSON_CreateString(macaddress));
+    configCommit();
+    printf("\n adding new MAC entry for %s:%s", name,macaddress);
+    return 1;
 }
 
 int wifi_config_write_beacons(char* name, char* tag, char* notifyOn, 

@@ -54,7 +54,7 @@ typedef struct {
 } ble_t;
 
 typedef struct {
-  uint8_t cl[6];
+  //uint8_t cl[6];
   char wl[18];
   char name[10];
 } cListStruct;
@@ -88,4 +88,4 @@ int get_start_timestamp(void);
 void mqttTask(void*);
 void wifi_send_mqtt(char* msg);
 void httpServer(void* param);
-
+int wifi_config_write_macs(char* macaddress, char* name);

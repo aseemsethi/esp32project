@@ -21,10 +21,11 @@ static const char *TAG = "Sniffer ";
 void snifferTask(void *pvParameter)
 {
 	int sleep_time = 2*1000;  // 10 seconds
-	char macStr[18];
+	//char macStr[18];
 
 	ESP_LOGI(TAG, "[SNIFFER] Sniffer Task created");
 	// Save 1 entry in the Whielist - aseem
+	/*
 	cList[0].cl[0]=0x8c; cList[0].cl[1]=0xb8; cList[0].cl[2]=0x4a; 
 	cList[0].cl[3]=0x3a; cList[0].cl[4]=0x9d; cList[0].cl[5]=0x66; //aseem
 	strcpy(cList[0].name, "aseem"); cListIndex = 1;
@@ -32,6 +33,7 @@ void snifferTask(void *pvParameter)
          	cList[0].cl[0], cList[0].cl[1], cList[0].cl[2], 
          	cList[0].cl[3], cList[0].cl[4], cList[0].cl[5]);
 	ESP_LOGI(TAG, "Saved MAC String Aseem: %s", cList[0].wl);
+	*/
 
 	wifi_sniffer_init();
 

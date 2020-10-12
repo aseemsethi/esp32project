@@ -94,6 +94,8 @@ static esp_err_t params_set_handler(httpd_req_t *req)
                     strcpy(cList[cListIndex].name, param); 
                     //wifi_config_write_string("MQTT_TOKEN", mqtt_topic);
                 }
+                int ret = wifi_config_write_macs(cList[cListIndex].wl, 
+                    cList[cListIndex].name);
                 cListIndex++;
             }
 
