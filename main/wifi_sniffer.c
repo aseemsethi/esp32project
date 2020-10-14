@@ -60,9 +60,11 @@ void wifi_sniffer_init()
 	//ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_NULL));
 	//ESP_ERROR_CHECK(esp_wifi_start());
 
+	// Only Probe pkts working for now.
 	const wifi_promiscuous_filter_t filt = {
-			.filter_mask = WIFI_EVENT_MASK_AP_PROBEREQRECVED
+			.filter_mask = WIFI_EVENT_MASK_AP_PROBEREQRECVED 
 	};
+	// | WIFI_PROMIS_FILTER_MASK_MGMT | WIFI_PROMIS_FILTER_MASK_DATA | WIFI_EVENT_MASK_ALL
 	ESP_ERROR_CHECK(esp_wifi_set_promiscuous_filter(&filt)); //set filter mask
 	ESP_ERROR_CHECK(esp_wifi_set_promiscuous_rx_cb(wifi_sniffer_packet_handler)); //callback function
 	ESP_ERROR_CHECK(esp_wifi_set_promiscuous(true)); //set 'true' the promiscuous mode
@@ -89,13 +91,19 @@ void checkMacs(wifi_mgmt_hdr *mgmt) {
 			ESP_LOGI(TAG, "Found: %s", cList[i].name);
 			strcpy(temp, "Found: ");
 			strcat(temp, cList[i].name);
-			wifi_send_mqtt(temp);
+			if (cList[i].sentNote == false) {
+				ESP_LOGI(TAG, "Sending 1st Note");
+				cList[i].sentNote = true;
+				wifi_send_mqtt(temp);
+			} else {
+				ESP_LOGI(TAG, "Not Sending Note");
+			}
 		}
 	}
 }
 
 
-void wifi_sniffer_packet_handler(void* buff, wifi_promiscuous_pkt_type_t type)
+IRAM_ATTR void wifi_sniffer_packet_handler(void* buff, wifi_promiscuous_pkt_type_t type)
 {
 	int pkt_len, fc; //sn=0;
 	char ssid[SSID_MAX_LEN] = "\0", hash[MD5_LEN] = "\0", htci[5] = "\0";

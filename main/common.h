@@ -57,6 +57,7 @@ typedef struct {
   //uint8_t cl[6];
   char wl[18];
   char name[10];
+  bool sentNote;
 } cListStruct;
 
 void oledDisplay(int x, int y, char* str);
